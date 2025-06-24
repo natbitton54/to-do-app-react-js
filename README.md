@@ -8,7 +8,7 @@ Here’s a polished and complete version of your `README.md` with a clean app de
 
 **TaskManager** is a modern, responsive web application built with **React** and **Firebase**. It helps users organize their tasks with ease and efficiency. Key features include:
 
-* ✅ **Secure Authentication** using email/password oand Google login via Firebase.
+* ✅ **Secure Authentication** using email/password and Google login via Firebase.
 * 🗂️ **Custom Task Categories** with color tags for easy organization.
 * ⏰ **Due Date & Time Support** for better task scheduling.
 * ✔️ **Mark, Edit, and Delete Tasks**, with confirmation prompts.
