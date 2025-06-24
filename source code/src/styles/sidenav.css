@@ -1,0 +1,21 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.img-container {
+    margin-top: 50px;
+}
+
+.username {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+    font-weight: 600;
+    text-align: center;
+    color: #a75cf7;
+}
+
+.logout-text {
+    font-size: 18px;
+}
