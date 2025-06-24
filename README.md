@@ -99,10 +99,17 @@ Your app should now be running at `http://localhost:3000`.
 
 ---
 
-Copyright © 2025 Nathaniel David Bitton
+## 🔒 License
 
-All rights reserved.
+This project is **not open source** and is protected under a proprietary license.
 
-This code is proprietary and confidential. No part of this codebase may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of the copyright holder.
+You may **fork this repository** for educational or personal learning purposes **only**. However, you are **not permitted** to:
 
-Unauthorized use, reproduction, or distribution is strictly prohibited.
+- Use the code in any published or production app
+- Copy, redistribute, or modify the code for your own use
+- Remove or alter any licensing information
+
+To use this project beyond learning or private review, please contact the author for licensing.
+
+© 2025 Nathaniel David Bitton. All rights reserved.
+
