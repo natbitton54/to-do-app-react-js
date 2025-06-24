@@ -110,6 +110,7 @@ You may **fork this repository** for educational or personal learning purposes *
 - Remove or alter any licensing information
 
 To use this project beyond learning or private review, please contact the author for licensing.
+ - nathanielbitton18@gmail.com
 
 © 2025 Nathaniel David Bitton. All rights reserved.
 
