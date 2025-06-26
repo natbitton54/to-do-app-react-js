@@ -19,3 +19,39 @@
 .logout-text {
     font-size: 18px;
 }
+
+/* ========= Animated purple ring around the hamburger ========== */
+@keyframes ring-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.4;
+    }
+}
+
+.animated-ring {
+    /* attach to the <button> */
+    position: relative;
+}
+
+.animated-ring::before {
+    /* the pulsing ring */
+    content: "";
+    position: absolute;
+    inset: -4px;
+    /* thickness matches ring-4 */
+    border-radius: 9999px;
+    border: 4px solid #a855f7;
+    /* purple-500 */
+    animation: ring-pulse 1.6s ease-in-out infinite;
+    pointer-events: none;
+    /* keeps click area clean   */
+    z-index: -1;
+    /* stays behind the button  */
+}

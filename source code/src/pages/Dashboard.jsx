@@ -121,14 +121,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex bg-white dark:bg-gray-900 min-h-screen">
+    <div className="flex flex-col md:flex-row bg-white dark:bg-gray-900 min-h-screen">
       <Sidenav />
-      <div className="container p-6 text-gray-800 dark:text-gray-100">
+      <main className="flex-1 w-full mt-14 p-4 sm:p-6 overflow-x-hidden">
         <p className="greetings text-xl font-semibold text-purple-700 dark:text-purple-400">
           {getGreeting()},{" "}
           <span className="text-[#828afa]">{user?.displayName || "User"}!</span>
         </p>
-        <p className="text-gray-700 dark:text-gray-300 text-lg font-medium">
+        <p className="text-gray-700 dark:text-gray-300 text-lg font-medium mb-4">
           It’s {getDateString()} {getTimeString()}
         </p>
         <TaskList
@@ -140,7 +140,7 @@ export default function Dashboard() {
           onAdd={handleAddTasks}
           onEdit={handleEdit}
         />
-      </div>
+      </main>
     </div>
   );
 }
