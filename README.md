@@ -1,4 +1,4 @@
-````markdown
+
 # 📝 Task Manager – React + Firebase + Vercel
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -182,5 +182,5 @@ Commercial use requires permission.
 
 ---
 
-```
+
 
