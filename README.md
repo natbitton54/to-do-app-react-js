@@ -1,116 +1,173 @@
-Here’s a polished and complete version of your `README.md` with a clean app description and clear setup instructions for anyone who wants to fork and deploy your **to-do-app-react-js** project:
+Below is an **updated, production-ready `README.md`** that reflects **every new feature we implemented**— smart reminders (local + push), the Vercel cron job, Capacitor mobile builds, dark-mode, etc.
+
+Feel free to copy-paste over your existing file.
 
 ---
 
-# 📝 To-Do App (React + Firebase)
+````markdown
+# 📝 Task Manager – React + Firebase + Vercel
 
-## ✅ App Description
+A full-stack **to-do / task-planner** that runs everywhere:
 
-**TaskManager** is a modern, responsive web application built with **React** and **Firebase**. It helps users organize their tasks with ease and efficiency. Key features include:
-
-* ✅ **Secure Authentication** using email/password and Google login via Firebase.
-* 🗂️ **Custom Task Categories** with color tags for easy organization.
-* ⏰ **Due Date & Time Support** for better task scheduling.
-* ✔️ **Mark, Edit, and Delete Tasks**, with confirmation prompts.
-* 🔍 **Filter Tasks** by All, Done, or Not Done.
-* 🌗 **Light/Dark Mode** support based on user system preferences.
-* 🔐 **Private User Data**, stored securely in **Firebase Firestore**.
-
-> Fully deployable on **Vercel** with live Firebase backend integration.
+* **Web (PWA)** – Installable on desktop & mobile  
+* **iOS / Android** – via Capacitor native shells  
+* **Serverless backend** – Firebase Auth + Firestore + Cloud Messaging  
+* **Automatic reminders** – smart “2/3-time” rule with push/local notifications
 
 ---
 
-## 🚀 Getting Started
+## ✨ Features
 
-### 1. **Fork & Clone the Repository**
+| Category | Details |
+|----------|---------|
+| 🔐 **Auth** | Email / password **and** Google OAuth (Firebase Authentication) |
+| 🗂 **Categories** | Unlimited user-defined categories with color dots |
+| ⏰ **Due Date & Time** | Native date/time pickers; pretty “Jul 4 2025 6 : 30 PM” rendering |
+| ⏳ **Smart Reminders** | <ul><li>📱 **Mobile** (Capacitor): scheduled **local** notification at <code>max(⅔ remaining, 5 min before)</code></li><li>💻 **Web / PWA**: registers an FCM push token so the server can ping you</li></ul> |
+| 🔔 **Cron Job** | `/api/sendReminders` runs **every 15 min** on Vercel (Pro) & marks <code>reminderSent=true</code> |
+| ✔️ **Task Actions** | Add / edit / toggle done / delete with confirmation |
+| 🔍 **Filters** | All • Done • Not Done |
+| 🌗 **Dark Mode** | Respects OS preference; switch with <kbd>⌥ + D</kbd> |
+| 📱 **Installable** | PWA manifest, favicon set, offline service-worker |
+| 🔒 **Per-user data** | Firestore rules – only read/write your own docs |
+
+---
+
+## 🛠 Quick Start
+
+> **Clone your fork**
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/to-do-app-react-js.git
+git clone https://github.com/<your-user>/to-do-app-react-js.git
 cd to-do-app-react-js
-```
-
----
-
-### 2. **Install Dependencies**
-
-```bash
 npm install
+````
+
+---
+
+### 1. Firebase Console
+
+1. **Create project** → “Task Manager”
+2. **Enable Auth** → *Email/Password* + (optionally) *Google*
+3. **Create Firestore** → *Start in test mode* (lock down later)
+4. **Generate Web App** → copy the config object
+5. **Generate VAPID key** (⚙  Project Settings → Cloud Messaging → Web Push)
+
+---
+
+### 2. Local secret files
+
+```
+.env.local               # React (frontend)
+.env                     # Next.js / Vercel serverless API
 ```
 
----
-
-### 3. **Firebase Setup**
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project.
-3. Enable **Authentication**:
-
-   * Go to **Authentication > Sign-in method**
-   * Enable **Email/Password** and optionally **Google** login
-4. Set up **Firestore Database**:
-
-   * Go to **Firestore Database** and click “Create Database”
-   * Start in test mode (optional: secure rules later)
-5. Go to **Project Settings > General**:
-
-   * Under "Your apps", click **\</>** to add a web app
-   * Copy the Firebase config
-
----
-
-### 4. **Add Firebase Config**
-
-Create a file:
+<details><summary>Click to see template contents</summary>
 
 ```bash
-/src/firebase/config.js
+# ----- .env.local -----
+REACT_APP_VAPID_PUBLIC_KEY=BNxyz...
+
+# ----- .env (never commit) -----
+# Firebase Admin service-account (JSON → env form)
+FIREBASE_PROJECT_ID=todo-app-react-js-xxxxx
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-123@todo-app-react-js-xxxxx.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqh...\n-----END PRIVATE KEY-----\n"
+
+# Secret used by Vercel Cron requests
+CRON_SECRET=f93a1c1d7e...
 ```
 
-Paste your Firebase config like this:
+</details>
 
-```js
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-};
-
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-```
+> **Create service-account JSON**
+> *IAM & Admin ▸ Service Accounts ▸ “Generate new key”* and copy the three values above.
 
 ---
 
-### 5. **Run the App Locally**
+### 3. Run it
 
 ```bash
-npm start
+npm run build         # generates /build for Capacitor & Vercel
+npm start             # or: npx vercel dev  (to test the API route locally)
 ```
 
-Your app should now be running at `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🔒 License
+## 🌩 Deploy to Vercel (web + cron job)
 
-This project is **not open source** and is protected under a proprietary license.
+1. `vercel login`
+2. `vercel` → follow prompts, **Framework = Create-React-App**
+3. **Add Environment Variables** in the dashboard (`REACT_APP_*`, service-account keys, `CRON_SECRET`)
+4. Create `vercel.json`:
 
-You may **fork this repository** for educational or personal learning purposes **only**. However, you are **not permitted** to:
+```jsonc
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/" }],
+  "crons": [
+    { "path": "/api/sendReminders", "schedule": "*/15 * * * *" } // Pro plan
+  ]
+}
+```
 
-- Use the code in any published or production app
-- Copy, redistribute, or modify the code for your own use
-- Remove or alter any licensing information
+5. `vercel --prod`
 
-To use this project beyond learning or private review, please contact the author for licensing.
- - nathanielbitton18@gmail.com
+---
 
-© 2025 Nathaniel David Bitton. All rights reserved.
+## 📲 Build native apps (optional)
 
+```bash
+npm run build                 # fresh web build
+npx cap sync                  # copies to native
+# Android
+npm i @capacitor/android
+npx cap add android
+npx cap open android          # Android Studio
+# iOS  (requires macOS + Xcode)
+npm i @capacitor/ios
+npx cap add ios
+npx cap open ios
+```
+
+Push to Play Store / TestFlight as usual.
+**Local notifications** already work via `@capacitor/local-notifications`.
+
+---
+
+## 👨‍💻 Scripts
+
+| Command          | Purpose                                         |
+| ---------------- | ----------------------------------------------- |
+| `npm start`      | CRA dev-server                                  |
+| `npm run build`  | Production build (served by Vercel & Capacitor) |
+| `npx vercel dev` | Test serverless API + React locally             |
+| `npm run lint`   | ESLint (Google style)                           |
+| `npx cap sync`   | Copy web → native platforms                     |
+
+---
+
+## 📜 License & Usage
+
+Copyright © 2025 **Nathaniel David Bitton**
+
+**Personal / educational use only** – commercial or public redistribution requires written permission.
+Email : **[nathanielbitton18@gmail.com](mailto:nathanielbitton18@gmail.com)**
+
+---
+
+```
+
+---
+
+### 🔑 What changed?
+
+* Added **Smart Reminder algorithm** description
+* Documented **`.env` variables** (service account + VAPID + cron secret)
+* Added **Vercel cron job** section
+* Included **Capacitor** build steps
+* Updated feature table and quick-start commands
+
+Now your README matches your codebase. Happy shipping!
+```
