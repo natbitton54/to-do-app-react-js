@@ -114,10 +114,17 @@ export default function CategoryPage() {
                         className={`mt-1 inline-block font-medium px-2 py-1 rounded-full ${
                           task.done
                             ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
+                            : new Date(task.due) < new Date()
+                            ? "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100"
                             : "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
                         }`}
                       >
-                        Status: {task.done ? "Done" : "Pending"}
+                        {task.done 
+                          ? 'Done'
+                          : new Date(task.due) < new Date()
+                          ? 'Overdue'
+                          : 'Pending'
+                        }
                       </span>
                     </div>
                   </div>

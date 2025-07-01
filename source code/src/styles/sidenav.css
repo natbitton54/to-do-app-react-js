@@ -55,3 +55,15 @@
     z-index: -1;
     /* stays behind the button  */
 }
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Chrome/Safari */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    /* IE & Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}

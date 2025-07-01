@@ -4,14 +4,29 @@ import {
     signOut,
     GoogleAuthProvider,
     signInWithPopup,
-    updateProfile
+    updateProfile,
+    setPersistence,
+    browserSessionPersistence,
+    sendPasswordResetEmail
 } from 'firebase/auth'
 
 import { auth, db } from './config.js'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { showError } from '../utils/alerts.js';
+
+function capitalizeName(name) {
+    return name
+        .trim()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+}
+
+const sessionOnly = () => setPersistence(auth, browserSessionPersistence);
 
 //? Email/password
 export const register = async (email, password, firstName, lastName) => {
+    await sessionOnly();
     const userCredentials = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredentials.user
     const displayName = `${capitalizeName(firstName)} ${capitalizeName(lastName)}`;
@@ -31,16 +46,14 @@ export const register = async (email, password, firstName, lastName) => {
     return userCredentials;
 }
 
-function capitalizeName(name) {
-    return name.trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-}
-
-export const login = (email, password) => {
+export const login = async (email, password) => {
+    await sessionOnly();
     return signInWithEmailAndPassword(auth, email, password)
 }
 
 //? Gmail auth
 export const loginWithGoogle = async () => {
+    await sessionOnly();
     const provider = new GoogleAuthProvider()
     const result = await signInWithPopup(auth, provider)
     const user = result.user
@@ -58,6 +71,17 @@ export const loginWithGoogle = async () => {
     }, { merge: true })
 
     return result;
+}
+
+const handleForgetPassword = async (email) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        alert("Password reset email sent!");
+    } catch (error) {
+        console.error("Error resetting password:", error.message);
+        showError("Failed to send reset email");
+    }
+
 }
 
 export const logout = () => {

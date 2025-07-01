@@ -1,4 +1,3 @@
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
   FaCalendarAlt,
@@ -7,8 +6,11 @@ import {
   FaPlus,
   FaTrash,
 } from "react-icons/fa";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
+import { scheduleTaskReminder } from "../utils/reminders";
+import { showError } from "../utils/alerts";
 
 export default function TaskList({
   tasks,
@@ -19,20 +21,16 @@ export default function TaskList({
   onEdit,
   onAdd,
 }) {
-  const filtered = tasks.filter((t) =>
-    filter === "done" ? t.done : filter === "notDone" ? !t.done : true
-  );
-
   const { user } = useAuth();
 
-  // ───────────────────────────── State ──────────────────────────────
+  // ────────── State ──────────
+  const [categories, setCategories] = useState([]); // actual data
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentId, setCurrentId] = useState(null);
-
-  const [categories, setCategories] = useState([]);
   const [showConfirmDeleteForm, setShowConfirmDeleteForm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [categoryReady, setCategoryReady] = useState(false); // loading flag
 
   const dateInputRef = useRef(null);
   const timeInputRef = useRef(null);
@@ -45,30 +43,51 @@ export default function TaskList({
     time: "",
   });
 
-  // ─────────────────────── Fetch categories ─────────────────────────
+  // ────────── Live categories listener ──────────
   useEffect(() => {
-    if (!user) return;
-
-    // Live listener (re-runs on any add / edit / delete)
+    if (!user) {
+      setCategories([]); // clear when logged out
+      setCategoryReady(true); // nothing to load
+      return;
+    }
     const unsubscribe = onSnapshot(
       collection(db, "users", user.uid, "categories"),
       (snap) => {
         setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setCategoryReady(true); // first snapshot received
       }
     );
-
-    return () => unsubscribe();
+    return unsubscribe;
   }, [user]);
 
-  // ─────────────────────── Form submit/edit ─────────────────────────
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const dueDate = `${formData.date} ${formData.time}`;
-    const task = { ...formData, due: dueDate };
+  // Clear form category if it no longer exists
+  useEffect(() => {
+    if (
+      formData.category &&
+      !categories.some((c) => c.name === formData.category)
+    ) {
+      setFormData((prev) => ({ ...prev, category: "" }));
+    }
+  }, [categories, formData.category]);
 
-    if (editMode) onEdit(currentId, task);
-    else onAdd(task);
+  useEffect(() => {
+    if ("Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          console.log("Notification permission:", permission);
+        });
+      } else {
+        console.log("Notification already", Notification.permission);
+      }
+    }
+  }, []);
 
+  // ────────── Helpers ──────────
+  const filtered = tasks.filter((t) =>
+    filter === "done" ? t.done : filter === "notDone" ? !t.done : true
+  );
+
+  const resetForm = () =>
     setFormData({
       title: "",
       description: "",
@@ -76,6 +95,41 @@ export default function TaskList({
       date: "",
       time: "",
     });
+
+  const calcRemindAtMs = (dueMs) => {
+    const now = Date.now();
+    const twoThirds = now + (dueMs - now) * (2 / 3);
+    const fiveMinutesLead = dueMs - 5 * 60 * 1000;
+    return Math.min(twoThirds, fiveMinutesLead);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const dueISO = `${formData.date}T${formData.time}`;
+    const dueMs = new Date(dueISO).getTime();
+    const remindAtMs = calcRemindAtMs(dueMs);
+    const dueStore = dueISO.replace("T", " ") + ":00";
+
+    const taskPayload = {
+      ...formData,
+      due: dueStore,
+      remindAt: remindAtMs,
+      createdMs: Date.now(),
+      reminderSent: false,
+    };
+
+    editMode ? onEdit(currentId, taskPayload) : onAdd(taskPayload);
+
+    if (
+      user?.uid &&
+      dueMs > Date.now() &&
+      Notification.permission === "granted"
+    ) {
+      scheduleTaskReminder({ uid: user.uid, title: formData.title, dueMs });
+    }
+
+    resetForm();
     setShowForm(false);
     setEditMode(false);
     setCurrentId(null);
@@ -95,7 +149,34 @@ export default function TaskList({
     setShowForm(true);
   };
 
-  // ─────────────────────────── Render ───────────────────────────────
+  // ────────── **Fixed** pretty-printer ──────────
+  const formatDue = (dueStr) => {
+    if (!dueStr) return "";
+
+    const [d, t] = dueStr.split(" ");
+    const [y, m, day] = d.split("-");
+    const [h, min, s] = t.split(":");
+
+    const date = new Date(
+      Number(y),
+      Number(m) - 1, // months 0-based
+      Number(day),
+      Number(h),
+      Number(min),
+      Number(s || 0)
+    );
+
+    return date.toLocaleString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // ────────── JSX ──────────
   return (
     <div className="mt-10">
       {/* Heading */}
@@ -114,7 +195,7 @@ export default function TaskList({
               key={key}
               onClick={() => setFilter(key)}
               className={`px-3 py-1 text-sm font-medium rounded-full border transition
-                ${filter === key ? "border-2 " : ""}
+                ${filter === key ? "border-2" : ""}
                 ${
                   key === "done"
                     ? filter === key
@@ -135,24 +216,47 @@ export default function TaskList({
         </div>
       </div>
 
-      {/* ───── Category-missing ALERT ───── */}
-      {categories.length === 0 && (
-        <div
-          className="md:hidden mb-6 p-3 rounded bg-yellow-100 dark:bg-yellow-800
-                  text-yellow-900 dark:text-yellow-100 text-center"
-        >
-          You don’t have any categories yet. Tap the <b>☰</b> menu to open the
-          sidebar and create one, or leave tasks as <b>Uncategorized</b>.
+      {/* Mobile-only no-category alert */}
+      {categoryReady && categories.length === 0 && (
+        <div className="mb-6 p-3 rounded bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 text-center">
+          {window.innerWidth <= 768 ? (
+            <>
+              You don’t have any categories yet. Tap the <b>☰</b> menu to open
+              the sidebar and create one, or leave tasks as <b>Uncategorized</b>
+              .
+            </>
+          ) : (
+            <>
+              You don’t have any categories yet. View the sidebar and create
+              one, or leave tasks as <b>Uncategorized</b>.
+            </>
+          )}
         </div>
       )}
 
       {/* Task list */}
-      <div className="bg-white dark:bg-gray-900 shadow rounded p-4 pb-1 transition-colors duration-300">
+      <div className="bg-white dark:bg-gray-900 shadow rounded p-4 pb-1 transition-colors">
         {filtered.length ? (
           filtered.map((task) => {
             const categoryInfo = categories.find(
               (c) => c.name === task.category
             );
+            const dueDate = new Date(task.due);
+            const isOverdue = !task.done && dueDate < new Date();
+
+            const status = task.done
+              ? "Done"
+              : isOverdue
+              ? "Overdue"
+              : "Pending";
+
+            const statusClass = {
+              Done: "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100",
+              Overdue:
+                "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-100",
+              Pending:
+                "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100",
+            };
 
             return (
               <div
@@ -163,7 +267,7 @@ export default function TaskList({
                 <div className="flex items-start sm:items-center gap-4">
                   {/* Checkbox */}
                   <button
-                    className={`flex-shrink-0 w-7 h-7 rounded-full border-2 border-black dark:border-white flex items-center justify-center transition-colors duration-200 ${
+                    className={`flex-shrink-0 w-7 h-7 rounded-full border-2 border-black dark:border-white flex items-center justify-center transition-colors ${
                       task.done ? "bg-black dark:bg-white" : "bg-transparent"
                     }`}
                     onClick={() => onToggle(task.id, !task.done)}
@@ -184,6 +288,7 @@ export default function TaskList({
                     >
                       {task.title}
                     </p>
+
                     <p
                       className={`text-gray-600 dark:text-gray-400 text-sm mb-1 ${
                         task.done
@@ -193,25 +298,35 @@ export default function TaskList({
                     >
                       {task.description}
                     </p>
+
                     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      {/* Category dot */}
                       <span
                         className="w-3 h-3 rounded-full"
                         style={{
-                          backgroundColor: categoryInfo?.color
+                          backgroundColor: categoryInfo
                             ? categoryInfo.color
-                            : "#6b7280", // Tailwind gray-500 fallback
+                            : "#6b7280",
                         }}
                       />
+                      {/* Category name (fallback) */}
                       <span className={task.done ? "line-through" : ""}>
-                        {task.category || "Uncategorized"}
+                        {categoryInfo ? categoryInfo.name : "Uncategorized"}
                       </span>
                       <span className="hidden sm:inline mx-2 text-gray-400">
                         |
                       </span>
                       <span className={task.done ? "line-through" : ""}>
-                        Due: {task.due}
+                        Due: {formatDue(task.due)}
                       </span>
                     </div>
+
+                    {/* Status Text */}
+                    <span
+                      className={`mt-2 inline-block px-2 py-1 rounded-full text-xs font-semibold ${statusClass[status]}`}
+                    >
+                      {status}
+                    </span>
                   </div>
                 </div>
 
@@ -248,27 +363,21 @@ export default function TaskList({
         onClick={() => {
           setShowForm(true);
           setEditMode(false);
-          setFormData({
-            title: "",
-            description: "",
-            category: "",
-            date: "",
-            time: "",
-          });
+          resetForm();
         }}
-        className="w-full text-xl flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-300 rounded-2xl py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 mt-5"
+        className="w-full text-xl flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-300 rounded-2xl py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mt-5"
       >
         <FaPlus />
         <span className="text-xl font-medium">Add a task</span>
       </button>
 
-      {/* … existing Confirm-Delete and Task-Form dialogs stay unchanged … */}
-
       {/* Confirm Delete dialog */}
       {showConfirmDeleteForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 p-6 rounded shadow-lg w-full max-w-sm text-center">
-            <h3 className="text-lg font-semibold mb-4 dark:text-red-600">Confirm Delete</h3>
+            <h3 className="text-lg font-semibold mb-4 dark:text-red-600">
+              Confirm Delete
+            </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Are you sure you want to delete this task?
             </p>
@@ -328,7 +437,6 @@ export default function TaskList({
                 setFormData({ ...formData, description: e.target.value })
               }
               className="w-full mb-3 p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded"
-              required
             />
 
             {/* Category select */}
@@ -356,7 +464,7 @@ export default function TaskList({
               )}
             </select>
 
-            {/* Date input */}
+            {/* Date */}
             <div className="relative mb-3">
               <input
                 ref={dateInputRef}
@@ -378,7 +486,7 @@ export default function TaskList({
               </button>
             </div>
 
-            {/* Time input */}
+            {/* Time */}
             <div className="relative mb-3">
               <input
                 ref={timeInputRef}
@@ -409,7 +517,10 @@ export default function TaskList({
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
                 className="text-gray-500 dark:text-gray-300 px-4 py-2 hover:underline"
               >
                 Cancel

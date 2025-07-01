@@ -95,15 +95,25 @@ export default function Login() {
         </form>
 
         <hr className="my-6" />
+        <div className="flex items-center justify-center space-x-4">
+          <GoogleButton onClick={handleGoogleAuth} />
+        </div>
 
-        <GoogleButton onClick={handleGoogleAuth} className="mx-auto" />
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600">
+          <span>
+            Don’t have an account?{" "}
+            <Link to="/register" className="text-blue-600 hover:underline">
+              Register here
+            </Link>
+          </span>
 
-        <p className="mt-6 text-sm text-center text-gray-600">
-          Don’t have an account?{" "}
-          <Link to="/register" className="text-blue-600 hover:underline">
-            Register here
+          <Link
+            to="/forgot-password"
+            className="mt-2 sm:mt-0 text-blue-600 hover:underline"
+          >
+            Forgot your password?
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

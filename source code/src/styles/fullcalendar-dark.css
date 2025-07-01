@@ -1,0 +1,61 @@
+/* ───────── FULLCALENDAR – DARK MODE OVERHAUL ─────────
+   Place AFTER FullCalendar’s own css imports. 
+   Activates whenever <html class="dark"> is present.
+   Tweak any hex to suit your brand.
+────────────────────────────────────────────────────── */
+.dark .fc {
+    /* === Global tokens === */
+    --fc-page-bg-color: #0d1117;
+    /* slate-900                */
+    --fc-neutral-bg-color: #1e293b;
+    /* slate-800 slot shading   */
+    --fc-border-color: #334155;
+    /* slate-700 grid lines     */
+    --fc-today-bg-color: #80a9bc;
+    /* blue-600 @ 20%    */
+
+    /* Text & icons */
+    --fc-neutral-text-color: #cbd5e1;
+    /* slate-300 generic labels */
+    --fc-button-text-color: #f1f5f9;
+    /* slate-50  button text    */
+    --fc-event-text-color: #f8fafc;
+    /* slate-50  event titles   */
+
+    /* Buttons (prev/next/today) */
+    --fc-button-bg-color: #475569;
+    /* slate-600                */
+    --fc-button-border-color: #475569;
+    --fc-button-hover-bg-color: #64748b;
+    /* slate-500 hover          */
+    --fc-button-active-bg-color: #64748b;
+
+    /* Generic event colour (fallback if a task lacks category colour) */
+    --fc-event-bg-color: #7c3aed;
+    /* violet-600               */
+    --fc-event-border-color: #7c3aed;
+}
+
+/* Day-grid & time-grid explicit text overrides
+     (these aren’t covered by the css vars) */
+.dark .fc .fc-col-header-cell-cushion,
+.dark .fc .fc-daygrid-day-number,
+.dark .fc .fc-timegrid-slot-label,
+.dark .fc .fc-scrollgrid-sync-inner,
+.dark .fc-toolbar-title {
+    color: #e2e8f0;
+    /* slate-200 – bright text */
+    font-weight: 500;
+}
+
+/* Dim “other month” numbers for clarity */
+.dark .fc .fc-daygrid-day.fc-day-other .fc-daygrid-day-number {
+    color: #64748b;
+    /* slate-500                */
+}
+
+@media (max-width: 768px) {
+    .fc .fc-toolbar-title {
+        font-size: 1.1rem !important;
+    }
+}

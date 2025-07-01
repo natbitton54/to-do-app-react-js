@@ -1,6 +1,13 @@
 import React, { useEffect, useReducer, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FaClipboardCheck, FaFolder, FaBars, FaTimes } from "react-icons/fa";
+import {
+  FaClipboardCheck,
+  FaFolder,
+  FaBars,
+  FaTimes,
+  FaCalendar,
+  FaCalendarAlt,
+} from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import "../styles/sidenav.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -152,9 +159,18 @@ export default function Sidenav() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen w-64 z-40 bg-gray-100 dark:bg-[#111827] text-gray-900 dark:text-gray-100 border-r border-gray-300 dark:border-gray-700 transform transition-transform duration-300 ease-in-out
+        className={`
+        fixed top-0 left-0 h-screen w-64
+        transform transition-transform duration-300 ease-in-out
         ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 md:relative md:flex`}
+        md:relative md:translate-x-0
+        md:h-auto md:min-h-screen
+        md:flex-shrink-0
+        z-40 overflow-y-auto
+        bg-gray-100 dark:bg-[#111827]
+        text-gray-900 dark:text-gray-100
+        border-r border-gray-300 dark:border-gray-700
+      `}
       >
         <div className="flex flex-col justify-between w-full h-full overflow-y-auto">
           {/* ---------- Top section ---------- */}
@@ -179,7 +195,7 @@ export default function Sidenav() {
                 ${
                   currentPath === "/dashboard"
                     ? "bg-purple-600 text-white"
-                    : "text-purple-600 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-800"
+                    : "text-[#a859f7] dark:text-[#a859f7] hover:bg-purple-100 dark:hover:bg-purple-800"
                 }`}
               >
                 <FaClipboardCheck />
@@ -187,13 +203,23 @@ export default function Sidenav() {
               </div>
             </Link>
 
-            {/* Theme toggle */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="w-full mt-2 flex items-center gap-2 px-5 py-2 font-semibold rounded text-black dark:text-white hover:bg-purple-100 dark:hover:bg-purple-800 transition"
+            <Link
+              to="/dashboard/calendar"
+              className="w-full mt-0"
+              onClick={() => setShowSidebar(false)}
             >
-              {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-            </button>
+              <div
+                className={`w-full flex items-center gap-2 px-6 py-2 font-semibold rounded transition
+                ${
+                  currentPath === "/dashboard/calendar"
+                    ? "bg-purple-600 text-white"
+                    : "text-yellow-600 dark:text-yellow-600 hover:bg-purple-100 dark:hover:bg-purple-800"
+                }`}
+              >
+                <FaCalendarAlt />
+                <span>Calendar</span>
+              </div>
+            </Link>
 
             {/* Account link */}
             <Link
@@ -213,6 +239,14 @@ export default function Sidenav() {
                 <span>Account</span>
               </div>
             </Link>
+
+            {/* Theme toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="w-full mt-2 flex items-center gap-2 px-5 py-2 font-semibold rounded text-black dark:text-white hover:bg-purple-100 dark:hover:bg-purple-800 transition"
+            >
+              {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+            </button>
 
             {/* ---------- Categories ---------- */}
             <div className="w-full px-6 mt-4">

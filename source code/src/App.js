@@ -8,12 +8,18 @@ import './index.css'
 import CatchAllRoutes from './Components/CatchAllRoutes';
 import CategoryPage from './pages/CategoryPage';
 import Account from './pages/Account';
+import Calendar from './pages/Calendar';
+import "./styles/fullcalendar-dark.css";
+import ForgotPassword from './pages/ForgotPassword';
+
 
 function App() {
   return (
     <Routes>
       <Route path='/login' element={<Login />} />
       <Route path='/register' element={<Register />} />
+      <Route path='/forgot-password' element={<ForgotPassword />} />
+
       <Route
         path='/'
         element={<ProtectedRoute>
@@ -44,6 +50,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Account />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/calendar"
+        element={
+          <ProtectedRoute>
+            <Calendar />
           </ProtectedRoute>
         }
       />
