@@ -11,7 +11,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 - 🌐 **Web PWA** – installable on desktop & mobile  
 - 📱 **Mobile apps** – via Capacitor (iOS & Android)  
 - ☁️ **Serverless backend** – Firebase Auth + Firestore + Cloud Messaging  
-- 🔔 **Smart reminders** – push and local notifications with[ [Cron Job Org Console](https://console.cron-job.org/)
+- 🔔 **Smart reminders** – push and local notifications with [Cron Job Org Console](https://console.cron-job.org/)
 
 ---
 
