@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false)
   const navigate = useNavigate();
 
   const { user } = useAuth();
@@ -19,7 +20,7 @@ export default function Login() {
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       showSuccess("Logged in successfully");
       navigate("/dashboard");
     } catch (err) {
@@ -49,7 +50,7 @@ export default function Login() {
 
   const handleGoogleAuth = async () => {
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(rememberMe);
       showSuccess("Logged in successfully");
       navigate("/dashboard");
     } catch (err) {
@@ -94,7 +95,11 @@ export default function Login() {
           </button>
         </form>
 
-        <hr className="my-6" />
+        <hr className="my-6 mb-4" />
+        <div className="flex mb-4">
+          <input type="checkbox" className="mr-2 ml-2" id="remember-me" value={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
+          <label htmlFor="remember-me">Remember me?</label>
+        </div>
         <div className="flex items-center justify-center space-x-4">
           <GoogleButton onClick={handleGoogleAuth} />
         </div>

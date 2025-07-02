@@ -7,7 +7,8 @@ import {
     updateProfile,
     setPersistence,
     browserSessionPersistence,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    browserLocalPersistence
 } from 'firebase/auth'
 
 import { auth, db } from './config.js'
@@ -22,11 +23,16 @@ function capitalizeName(name) {
         .join(' ')
 }
 
-const sessionOnly = () => setPersistence(auth, browserSessionPersistence);
+const applyPersistence = (remember) => {
+    setPersistence(
+        auth,
+        remember ? browserLocalPersistence : browserSessionPersistence
+    )
+}
 
 //? Email/password
 export const register = async (email, password, firstName, lastName) => {
-    await sessionOnly();
+    await applyPersistence(false)
     const userCredentials = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredentials.user
     const displayName = `${capitalizeName(firstName)} ${capitalizeName(lastName)}`;
@@ -46,8 +52,8 @@ export const register = async (email, password, firstName, lastName) => {
     return userCredentials;
 }
 
-export const login = async (email, password) => {
-    await sessionOnly();
+export const login = async (email, password, remember = false) => {
+    await applyPersistence(remember);
     return signInWithEmailAndPassword(auth, email, password)
 }
 
@@ -56,8 +62,8 @@ const toTitleCase = (string) => {
 }
 
 //? Gmail auth
-export const loginWithGoogle = async () => {
-    await sessionOnly();
+export const loginWithGoogle = async (remember = false) => {
+    await applyPersistence(remember);
     const provider = new GoogleAuthProvider()
     const result = await signInWithPopup(auth, provider)
     const user = result.user
