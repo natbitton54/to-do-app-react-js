@@ -66,22 +66,33 @@ export default function Dashboard() {
   }, []);
 
   // ---- greeting / clock strings ----
-  const getGreeting = (time,tz) => {
-    const hour = Number(time.toLocaleTimeString('en-US', { hour: "numeric", hour12: false, timeZone: tz }));
+  const buildDueString = (date, time) =>
+    `${date} ${time.trim().length === 5 ? `${time}:00` : time}`;
+
+  const getGreeting = (time, tz) => {
+    const hour = Number(
+      time.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: tz,
+      })
+    );
     if (hour >= 5 && hour < 12) return "Good Morning";
     if (hour >= 12 && hour < 17) return "Good Afternoon";
     if (hour >= 17 && hour < 21) return "Good Evening";
     return "Good Night";
   };
+
   const getDateString = (time, tz) =>
-    time.toLocaleDateString(undefined, {
+    time.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric",
       year: "numeric",
       timeZone: tz,
     });
+
   const getTimeString = (time, tz) =>
-    time.toLocaleTimeString(undefined, {
+    time.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "numeric",
       second: "numeric",
@@ -100,9 +111,9 @@ export default function Dashboard() {
     const ref = collection(db, "users", user.uid, "tasks");
     await addDoc(ref, {
       ...newTask,
-      due: buildDueString(newTask.date, newTask.time), 
+      due: buildDueString(newTask.date, newTask.time),
       done: false,
-      reminderSent: false, 
+      reminderSent: false,
     });
   };
 
@@ -115,8 +126,8 @@ export default function Dashboard() {
     const ref = doc(db, "users", user.uid, "tasks", id);
     const patch = {
       ...data,
-      due: buildDueString(data.date, data.time), 
-      reminderSent: false, 
+      due: buildDueString(data.date, data.time),
+      reminderSent: false,
     };
     await updateDoc(ref, patch);
     dispatch({ type: "EDIT", payload: { id, data: patch } });
@@ -134,7 +145,7 @@ export default function Dashboard() {
         </p>
 
         <p className="text-gray-700 dark:text-gray-300 text-lg font-medium mb-4">
-          It’s {getDateString(time, tz)} {getTimeString(time, tz)} 
+          It’s {getDateString(time, tz)} {getTimeString(time, tz)}
         </p>
 
         <TaskList

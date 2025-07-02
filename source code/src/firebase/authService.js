@@ -51,6 +51,10 @@ export const login = async (email, password) => {
     return signInWithEmailAndPassword(auth, email, password)
 }
 
+const toTitleCase = (string) => {
+    string.trim().split(/\s+/).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+}
+
 //? Gmail auth
 export const loginWithGoogle = async () => {
     await sessionOnly();
@@ -58,17 +62,23 @@ export const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, provider)
     const user = result.user
 
-    const nameParts = user.displayName?.split(' ') || [];
-    const firstName = capitalizeName(nameParts[0] || '');
-    const lastName = capitalizeName(nameParts.slice(1).join(' ') || '');
+    const fullName = user.displayName?.trim() || ''
+    const [rawFirstName = "", ...rest] = fullName.split(/\s+/)
 
-    await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        firstName,
-        lastName,
-        email: user.email,
-        createdAt: serverTimestamp()
-    }, { merge: true })
+    const firstName = toTitleCase(rawFirstName) || "Unknown";
+    const lastName = toTitleCase(rest.join(" ")) || "";
+
+    await setDoc(
+        doc(db, "users", user.uid),
+        {
+            uid: user.uid,
+            firstName,
+            lastName,
+            email: user.email || "",
+            createdAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
 
     return result;
 }

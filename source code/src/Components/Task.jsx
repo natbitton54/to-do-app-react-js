@@ -331,7 +331,7 @@ export default function TaskList({
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 md:flex justify-end">
                   <button
                     onClick={() => startEdit(task)}
                     className="text-gray-400 dark:text-gray-300 text-xl hover:text-black dark:hover:text-white p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition"

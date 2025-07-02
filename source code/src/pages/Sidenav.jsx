@@ -5,7 +5,6 @@ import {
   FaFolder,
   FaBars,
   FaTimes,
-  FaCalendar,
   FaCalendarAlt,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
@@ -92,10 +91,12 @@ export default function Sidenav() {
   /* ---------- Helpers ---------- */
   const toggleCategories = () => setShowCategories((p) => !p);
 
-  const handleNameExist = async (name) => {
+  const handleNameExist = async (name, excludeId = null) => {
     const snap = await getDocs(collection(db, "users", user.uid, "categories"));
     const exists = snap.docs.some(
-      (d) => d.data().name.toLowerCase() === name.trim().toLowerCase()
+      (d) =>
+        d.id !== excludeId &&
+        d.data().name.toLowerCase() === name.trim().toLowerCase()
     );
     if (exists) showError("A category with that name already exists.");
     return exists;
@@ -113,16 +114,24 @@ export default function Sidenav() {
 
   const handleEditCategory = async (id, newName, newColor) => {
     try {
-      if (await handleNameExist(newName)) return;
+      const original = categories.find((c) => c.id === id);
+      const nameChanged =
+        original &&
+        original.name.toLowerCase() !== newName.trim().toLowerCase();
+
+      if (nameChanged && (await handleNameExist(newName, id))) return;
+
       await updateDoc(doc(db, "users", user.uid, "categories", id), {
         name: newName,
         color: newColor,
         link: slugify(newName),
       });
+
       dispatch({
         type: "EDIT",
         payload: { id, name: newName, color: newColor },
       });
+
       showSuccess("Category updated successfully!");
     } catch (err) {
       showError("Error editing category: " + (err.message || err));
