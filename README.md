@@ -11,7 +11,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 - 🌐 **Web PWA** – installable on desktop & mobile  
 - 📱 **Mobile apps** – via Capacitor (iOS & Android)  
 - ☁️ **Serverless backend** – Firebase Auth + Firestore + Cloud Messaging  
-- 🔔 **Smart reminders** – push and local notifications with Vercel cron job
+- 🔔 **Smart reminders** – push and local notifications with [Cron Job Org Console](https://console.cron-job.org/)
 
 ---
 
@@ -22,7 +22,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 | 🔐 **Auth**        | Email/password & Google login (Firebase Authentication) |
 | 🗂 **Categories**  | Unlimited user-defined categories with color tags |
 | ⏰ **Due Date & Time** | Native pickers & readable formatting (e.g. Jul 4, 2025, 6:30 PM) |
-| ⏳ **Smart Reminders** | <ul><li>📱 Local notifications via Capacitor</li><li>💻 Push via Firebase Cloud Messaging + Vercel cron job</li></ul> |
+| ⏳ **Smart Reminders** | <ul><li>📱 Local notifications via Capacitor</li><li>💻 Push via Firebase Cloud Messaging + cron job</li></ul> |
 | 🔔 **Cron Job**    | `/api/sendReminders` runs every 15 min (Pro tier), marking tasks as `reminderSent=true` |
 | ✔️ **Task Actions** | Add • Edit • Toggle Done • Delete (with confirmation) |
 | 🔍 **Filters**     | All • Done • Not Done |
@@ -47,7 +47,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 - **Firebase Auth** for secure login
 - **Firestore** for task storage
 - **Cloud Messaging** for web push
-- **Vercel serverless API** (`/api/sendReminders`) triggered by cron
+- **Vercel serverless API** (`/api/sendReminders`) triggered by cron job org console
 
 ---
 
