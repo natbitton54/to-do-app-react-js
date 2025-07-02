@@ -22,7 +22,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 | 🔐 **Auth**        | Email/password & Google login (Firebase Authentication) |
 | 🗂 **Categories**  | Unlimited user-defined categories with color tags |
 | ⏰ **Due Date & Time** | Native pickers & readable formatting (e.g. Jul 4, 2025, 6:30 PM) |
-| ⏳ **Smart Reminders** | <ul><li>📱 Local notifications via Capacitor</li><li>💻 Push via Firebase Cloud Messaging + Vercel cron job</li></ul> |
+| ⏳ **Smart Reminders** | <ul><li>📱 Local notifications via Capacitor</li><li>💻 Push via Firebase Cloud Messaging + cron job</li></ul> |
 | 🔔 **Cron Job**    | `/api/sendReminders` runs every 15 min (Pro tier), marking tasks as `reminderSent=true` |
 | ✔️ **Task Actions** | Add • Edit • Toggle Done • Delete (with confirmation) |
 | 🔍 **Filters**     | All • Done • Not Done |
