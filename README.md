@@ -47,7 +47,7 @@ A full-stack **to-do / task planner** that runs everywhere:
 - **Firebase Auth** for secure login
 - **Firestore** for task storage
 - **Cloud Messaging** for web push
-- **Vercel serverless API** (`/api/sendReminders`) triggered by cron
+- **Vercel serverless API** (`/api/sendReminders`) triggered by cron job org console
 
 ---
 
