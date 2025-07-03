@@ -97,8 +97,19 @@ export default function Login() {
 
         <hr className="my-6 mb-4" />
         <div className="flex mb-4">
-          <input type="checkbox" className="mr-2 ml-2" id="remember-me" value={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}/>
-          <label htmlFor="remember-me">Remember me?</label>
+          <input
+            type="checkbox"
+            className="mr-2 ml-2 cursor-pointer"
+            id="remember-me"
+            value={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+          <label
+            className="cursor-pointer hover:text-[#305ae6] hover:underline"
+            htmlFor="remember-me"
+          >
+            Remember me?
+          </label>
         </div>
         <div className="flex items-center justify-center space-x-4">
           <GoogleButton onClick={handleGoogleAuth} />

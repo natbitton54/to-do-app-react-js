@@ -8,3 +8,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   opacity: 0;
   display: none;
 }
+
+.dark .fc .fc-list-event:hover td {
+  background-color: #000;
+}
+
+.fc .fc-list-event:hover td {
+  background-color: #aaa;
+}

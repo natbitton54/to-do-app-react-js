@@ -95,10 +95,12 @@
     }
 }
 
+
+
 /* Dark-mode hover tweak for list rows */
 @media (prefers-color-scheme: dark) {
     .dark .fc .fc-list-event:hover {
-        background: rgba(255, 255, 255, 0.05);
+       
     }
 }
 

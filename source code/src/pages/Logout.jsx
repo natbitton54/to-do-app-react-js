@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { showError, showSuccess } from "../utils/alerts";
 import { logout as firebaseLogout  } from "../firebase/authService";

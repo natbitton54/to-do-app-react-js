@@ -11,6 +11,7 @@ import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
 import { scheduleTaskReminder } from "../utils/reminders";
 import { showError } from "../utils/alerts";
+import { Link } from "react-router-dom";
 
 export default function TaskList({
   tasks,
@@ -86,6 +87,13 @@ export default function TaskList({
   const filtered = tasks.filter((t) =>
     filter === "done" ? t.done : filter === "notDone" ? !t.done : true
   );
+
+  const slugify = (text = "") =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]/g, "");
 
   const resetForm = () =>
     setFormData({
@@ -311,7 +319,10 @@ export default function TaskList({
                       />
                       {/* Category name (fallback) */}
                       <span className={task.done ? "line-through" : ""}>
-                        {categoryInfo ? categoryInfo.name : "Uncategorized"}
+                        {/* # -> uncategorized -> no link  */}
+                        <Link to={categoryInfo ? `/dashboard/categories/${categoryInfo.link}` : '#'}> 
+                          {categoryInfo ? categoryInfo.name : "Uncategorized"}
+                        </Link>
                       </span>
                       <span className="hidden sm:inline mx-2 text-gray-400">
                         |

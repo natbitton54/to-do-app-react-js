@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth'
 
 import { auth, db } from './config.js'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { showError } from '../utils/alerts.js';
 
 function capitalizeName(name) {
@@ -23,8 +23,8 @@ function capitalizeName(name) {
         .join(' ')
 }
 
-const applyPersistence = (remember) => {
-    setPersistence(
+const applyPersistence = async (remember) => {
+    await setPersistence(
         auth,
         remember ? browserLocalPersistence : browserSessionPersistence
     )
@@ -33,9 +33,12 @@ const applyPersistence = (remember) => {
 //? Email/password
 export const register = async (email, password, firstName, lastName) => {
     await applyPersistence(false)
-    const userCredentials = await createUserWithEmailAndPassword(auth, email, password)
+    const normalizedEmail = email.trim().toLowerCase();
+    const userCredentials = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
     const user = userCredentials.user
-    const displayName = `${capitalizeName(firstName)} ${capitalizeName(lastName)}`;
+    const capFirstName = capitalizeName(firstName);
+    const capLastName = capitalizeName(lastName);
+    const displayName = `${capFirstName} ${capLastName}`;
 
     await updateProfile(user, {
         displayName
@@ -43,8 +46,8 @@ export const register = async (email, password, firstName, lastName) => {
 
     await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
-        firstName: capitalizeName(firstName),
-        lastName: capitalizeName(lastName),
+        firstName: capFirstName,
+        lastName: capLastName,
         email: user.email,
         createdAt: serverTimestamp()
     })
@@ -54,11 +57,8 @@ export const register = async (email, password, firstName, lastName) => {
 
 export const login = async (email, password, remember = false) => {
     await applyPersistence(remember);
-    return signInWithEmailAndPassword(auth, email, password)
-}
-
-const toTitleCase = (string) => {
-    string.trim().split(/\s+/).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+    const normalizedEmail = email.trim().toLowerCase();
+    return signInWithEmailAndPassword(auth, normalizedEmail, password)
 }
 
 //? Gmail auth
@@ -68,30 +68,40 @@ export const loginWithGoogle = async (remember = false) => {
     const result = await signInWithPopup(auth, provider)
     const user = result.user
 
-    const fullName = user.displayName?.trim() || ''
-    const [rawFirstName = "", ...rest] = fullName.split(/\s+/)
+    const nameParts = user.displayName?.trim().split(/\s+/) || [];
 
-    const firstName = toTitleCase(rawFirstName) || "Unknown";
-    const lastName = toTitleCase(rest.join(" ")) || "";
+    const firstName = capitalizeName(nameParts[0] || '')
+    const lastName = capitalizeName(nameParts.slice(1).join(" ") || '')
 
-    await setDoc(
-        doc(db, "users", user.uid),
-        {
-            uid: user.uid,
+    const userRef = doc(db, 'users', user.uid)
+    const snapshot = await getDoc(userRef)
+
+    if (!snapshot.exists()) {
+        await setDoc(
+            userRef,
+            {
+                uid: user.uid,
+                firstName,
+                lastName,
+                email: user.email || "",
+                createdAt: serverTimestamp(),
+            },
+        );
+    } else {
+        // already registered → leave createdAt untouched
+        await updateDoc(userRef, {
             firstName,
             lastName,
-            email: user.email || "",
-            createdAt: serverTimestamp(),
-        },
-        { merge: true }
-    );
+            email: user.email || ''
+        })
+    }
 
     return result;
 }
 
-const handleForgetPassword = async (email) => {
+export const handleForgetPassword = async (email) => {
     try {
-        await sendPasswordResetEmail(auth, email);
+        await sendPasswordResetEmail(auth, email.trim().toLowerCase());
         alert("Password reset email sent!");
     } catch (error) {
         console.error("Error resetting password:", error.message);
@@ -100,6 +110,4 @@ const handleForgetPassword = async (email) => {
 
 }
 
-export const logout = () => {
-    return signOut(auth)
-}
+export const logout = () => signOut(auth);
