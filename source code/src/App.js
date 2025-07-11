@@ -11,6 +11,7 @@ import Account from './pages/Account';
 import Calendar from './pages/Calendar';
 import "./styles/fullcalendar-dark.css";
 import ForgotPassword from './pages/ForgotPassword';
+import Statistics from './pages/Statistics';
 
 
 function App() {
@@ -50,6 +51,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Account />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/statistics"
+        element={
+          <ProtectedRoute>
+            <Statistics />
           </ProtectedRoute>
         }
       />

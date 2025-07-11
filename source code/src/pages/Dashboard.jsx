@@ -13,6 +13,8 @@ import {
   doc,
   addDoc,
 } from "firebase/firestore";
+import useTaskStats from "../hooks/useTaskStats";
+import { Link } from "react-router-dom";
 
 // ---------- reducer ----------
 const taskReducer = (state, action) => {
@@ -35,15 +37,23 @@ const taskReducer = (state, action) => {
 };
 
 // ---------- helpers ----------
-/** Turn yyyy-MM-dd + HH:mm -> yyyy-MM-dd HH:mm:ss */
-const buildDueString = (date, time) =>
-  `${date} ${time.trim().length === 5 ? `${time}:00` : time}`; // pad seconds
+const buildDueString = (d, t) => {
+  if (typeof d !== "string" || !d.trim()) return "";
+
+  const dateStr = d.trim();
+  const rawTime = typeof t === "string" && t.trim() ? t.trim() : "00:00";
+
+  const timeStr = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+
+  return `${dateStr} ${timeStr}`;
+};
 
 export default function Dashboard() {
   const { user, tz = "UTC" } = useAuth();
   const [time, setTime] = useState(new Date());
   const [filter, setFilter] = useState("all");
   const [tasks, dispatch] = useReducer(taskReducer, []);
+  const { stats, donePercentage } = useTaskStats(user);
 
   // live tasks listener
   useEffect(() => {
@@ -64,10 +74,6 @@ export default function Dashboard() {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-
-  // ---- greeting / clock strings ----
-  const buildDueString = (date, time) =>
-    `${date} ${time.trim().length === 5 ? `${time}:00` : time}`;
 
   const getGreeting = (time, tz) => {
     const hour = Number(
@@ -108,13 +114,16 @@ export default function Dashboard() {
   };
 
   const handleAddTasks = async (newTask) => {
-    const ref = collection(db, "users", user.uid, "tasks");
-    await addDoc(ref, {
+    const colRef = collection(db, "users", user.uid, "tasks");
+
+    const docRef = await addDoc(colRef, {
       ...newTask,
       due: buildDueString(newTask.date, newTask.time),
       done: false,
       reminderSent: false,
     });
+
+    return docRef;
   };
 
   const handleDelete = async (id) => {
@@ -124,11 +133,14 @@ export default function Dashboard() {
 
   const handleEdit = async (id, data) => {
     const ref = doc(db, "users", user.uid, "tasks", id);
-    const patch = {
-      ...data,
-      due: buildDueString(data.date, data.time),
-      reminderSent: false,
-    };
+    const patch = { ...data };
+
+    if (data.date) {
+      patch.due = buildDueString(data.date, data.time);
+    }
+
+    patch.reminderSent = false;
+
     await updateDoc(ref, patch);
     dispatch({ type: "EDIT", payload: { id, data: patch } });
   };
@@ -157,6 +169,23 @@ export default function Dashboard() {
           onAdd={handleAddTasks}
           onEdit={handleEdit}
         />
+
+        <div className="flex flex-col items-end mt-4 space-y-1 mr-4">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 mr-1">
+            Your Statistics
+          </span>
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-lg shadow-sm flex items-center gap-1">
+              ✅ Completed: {stats.done} ({donePercentage}%)
+            </p>
+          </div>
+          <Link
+            to="/dashboard/statistics"
+            className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+          >
+            View more →
+          </Link>
+        </div>
       </main>
     </div>
   );

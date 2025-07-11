@@ -6,6 +6,9 @@ import {
   FaBars,
   FaTimes,
   FaCalendarAlt,
+  FaChartLine,
+  FaChartArea,
+  FaChartBar
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import "../styles/sidenav.css";
@@ -246,6 +249,24 @@ export default function Sidenav() {
               >
                 <FontAwesomeIcon icon={faUser} />
                 <span>Account</span>
+              </div>
+            </Link>
+
+            <Link
+              to="/dashboard/statistics"
+              className="w-full mt-2"
+              onClick={() => setShowSidebar(false)}
+            >
+              <div
+                className={`w-full flex items-center gap-2 px-6 py-2 font-semibold rounded transition
+                ${
+                  currentPath === "/dashboard/statistics"
+                    ? "bg-purple-600 text-white"
+                    : "text-green-400 dark:text-green-300 hover:bg-purple-100 dark:hover:bg-purple-800"
+                }`}
+              >
+                <FaChartBar/>
+                <span>Statistics</span>
               </div>
             </Link>
 

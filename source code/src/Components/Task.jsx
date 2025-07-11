@@ -1,3 +1,4 @@
+// src/Components/TaskList.jsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   FaCalendarAlt,
@@ -12,6 +13,23 @@ import { useAuth } from "../context/AuthContext";
 import { scheduleTaskReminder } from "../utils/reminders";
 import { showError } from "../utils/alerts";
 import { Link } from "react-router-dom";
+import ReminderToggle from "./ReminderToggle";
+import { connectGoogleCalendar } from "../firebase/authService";
+import {
+  addEventToGoogleCalendar,
+  deleteCalendarEvent,
+} from "../utils/googleCalendarAPI";
+import SearchBar from "./SearchBar";
+
+/* ------------------------------------------------------------------ */
+/*  Local-storage keys                                                */
+/* ------------------------------------------------------------------ */
+
+const LS = { CAL: "calendarConnected", NOTI: "notiConsent" };
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
 
 export default function TaskList({
   tasks,
@@ -24,17 +42,29 @@ export default function TaskList({
 }) {
   const { user } = useAuth();
 
-  // ────────── State ──────────
-  const [categories, setCategories] = useState([]); // actual data
+  /* --------------------------- state ------------------------------ */
+
+  const [categories, setCategories] = useState([]);
+  const [categoryReady, setCategoryReady] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentId, setCurrentId] = useState(null);
+
   const [showConfirmDeleteForm, setShowConfirmDeleteForm] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
-  const [categoryReady, setCategoryReady] = useState(false); // loading flag
+
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderTime, setReminderTime] = useState("");
+  const [calendarConnected, setCalendarConnected] = useState(
+    localStorage.getItem(LS.CAL) === "true"
+  );
 
   const dateInputRef = useRef(null);
   const timeInputRef = useRef(null);
+
+  const todayLocal = new Date().toLocaleDateString("sv-SE");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -44,56 +74,65 @@ export default function TaskList({
     time: "",
   });
 
-  // ────────── Live categories listener ──────────
+  const [searchResults, setSearchResults] = useState(null);
+
+  /* -------------------- Firestore category listener --------------- */
+
   useEffect(() => {
     if (!user) {
-      setCategories([]); // clear when logged out
-      setCategoryReady(true); // nothing to load
+      setCategories([]);
+      setCategoryReady(true);
       return;
     }
-    const unsubscribe = onSnapshot(
+    const unsub = onSnapshot(
       collection(db, "users", user.uid, "categories"),
       (snap) => {
         setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setCategoryReady(true); // first snapshot received
+        setCategoryReady(true);
       }
     );
-    return unsubscribe;
+    return unsub;
   }, [user]);
 
-  // Clear form category if it no longer exists
-  useEffect(() => {
-    if (
-      formData.category &&
-      !categories.some((c) => c.name === formData.category)
-    ) {
-      setFormData((prev) => ({ ...prev, category: "" }));
-    }
-  }, [categories, formData.category]);
+  /* -------------------- ask Notification permission 1× ------------ */
 
   useEffect(() => {
-    if ("Notification" in window) {
+    if ("Notification" in window && !localStorage.getItem(LS.NOTI)) {
       if (Notification.permission === "default") {
-        Notification.requestPermission().then((permission) => {
-          console.log("Notification permission:", permission);
+        Notification.requestPermission().then((perm) => {
+          if (perm === "granted") localStorage.setItem(LS.NOTI, "true");
         });
-      } else {
-        console.log("Notification already", Notification.permission);
+      } else if (Notification.permission === "granted") {
+        localStorage.setItem(LS.NOTI, "true");
       }
     }
   }, []);
 
-  // ────────── Helpers ──────────
-  const filtered = tasks.filter((t) =>
-    filter === "done" ? t.done : filter === "notDone" ? !t.done : true
-  );
+  /* -------------------- silent calendar refresh ------------------- */
 
-  const slugify = (text = "") =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "");
+  useEffect(() => {
+    (async () => {
+      try {
+        if (localStorage.getItem(LS.CAL) !== "true") return;
+        await connectGoogleCalendar({ interactive: false }); // silent refresh
+        setCalendarConnected(true);
+      } catch (err) {
+        const recoverable =
+          err?.error === "popup_blocked" ||
+          err?.error === "token_failed" ||
+          err?.error === undefined;
+
+        if (recoverable) {
+          console.warn("Silent calendar reconnect failed:", err);
+          setCalendarConnected(false); // let user manually reconnect
+        } else {
+          setCalendarConnected(false); // hard failure
+        }
+      }
+    })();
+  }, []);
+
+  /* --------------------------- helpers ---------------------------- */
 
   const resetForm = () =>
     setFormData({
@@ -104,76 +143,27 @@ export default function TaskList({
       time: "",
     });
 
-  const calcRemindAtMs = (dueMs) => {
-    const now = Date.now();
-    const twoThirds = now + (dueMs - now) * (2 / 3);
-    const fiveMinutesLead = dueMs - 5 * 60 * 1000;
-    return Math.min(twoThirds, fiveMinutesLead);
+  const resetReminder = () => {
+    setReminderOn(false);
+    setReminderDate("");
+    setReminderTime("");
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const fmtDate = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
 
-    const dueISO = `${formData.date}T${formData.time}`;
-    const dueMs = new Date(dueISO).getTime();
-    const remindAtMs = calcRemindAtMs(dueMs);
-    const dueStore = dueISO.replace("T", " ") + ":00";
+  const fmtTime = (d) =>
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(
+      2,
+      "0"
+    )}`;
 
-    const taskPayload = {
-      ...formData,
-      due: dueStore,
-      remindAt: remindAtMs,
-      createdMs: Date.now(),
-      reminderSent: false,
-    };
-
-    editMode ? onEdit(currentId, taskPayload) : onAdd(taskPayload);
-
-    if (
-      user?.uid &&
-      dueMs > Date.now() &&
-      Notification.permission === "granted"
-    ) {
-      scheduleTaskReminder({ uid: user.uid, title: formData.title, dueMs });
-    }
-
-    resetForm();
-    setShowForm(false);
-    setEditMode(false);
-    setCurrentId(null);
-  };
-
-  const startEdit = (task) => {
-    const [date, time] = task.due?.split(" ") || ["", ""];
-    setFormData({
-      title: task.title,
-      description: task.description,
-      category: task.category,
-      date,
-      time,
-    });
-    setCurrentId(task.id);
-    setEditMode(true);
-    setShowForm(true);
-  };
-
-  // ────────── **Fixed** pretty-printer ──────────
-  const formatDue = (dueStr) => {
-    if (!dueStr) return "";
-
-    const [d, t] = dueStr.split(" ");
-    const [y, m, day] = d.split("-");
-    const [h, min, s] = t.split(":");
-
-    const date = new Date(
-      Number(y),
-      Number(m) - 1, // months 0-based
-      Number(day),
-      Number(h),
-      Number(min),
-      Number(s || 0)
-    );
-
+  const formatDue = (iso = "") => {
+    if (!iso) return "";
+    const [d, t] = iso.includes("T") ? iso.split("T") : iso.split(" ");
+    const date = new Date(`${d}T${t}`);
     return date.toLocaleString(undefined, {
       month: "long",
       day: "numeric",
@@ -184,15 +174,248 @@ export default function TaskList({
     });
   };
 
-  // ────────── JSX ──────────
+  const suggestReminder = (taskDate, taskTime) => {
+    if (!taskDate) return { date: "", time: "" };
+    const safeTime = taskTime || "00:00";
+    const dueMs = new Date(`${taskDate}T${safeTime}`).getTime();
+    const oneHourMs = 60 * 60 * 1000;
+    const suggestMs = dueMs - oneHourMs;
+    if (suggestMs <= Date.now()) return { date: "", time: "" };
+    const d = new Date(suggestMs);
+    return { date: fmtDate(d), time: fmtTime(d) };
+  };
+
+  const sanitizeId = (v) =>
+    (v || "")
+      .toString()
+      .replace(/[^A-Za-z0-9_]/g, "")
+      .slice(0, 1024);
+
+  /* -------------------- calendar connection button ---------------- */
+
+  const handleConnectCalendar = async () => {
+    try {
+      await connectGoogleCalendar(); // will prompt
+      localStorage.setItem("calendarConnected", "true");
+      setCalendarConnected(true);
+    } catch (err) {
+      console.error("Google Calendar connection failed", err);
+    }
+  };
+
+  /* ---------------------- calendar entry helper ------------------- */
+
+  const createCalendarEntry = async (task, dueMs, remindMs) => {
+    if (task.done) return null;
+    const datePart = task.date || (task.due ?? "").split(/[T ]/)[0];
+    const timePart =
+      task.time || (task.due ?? "").split(/[T ]/)[1]?.slice(0, 5) || "00:00";
+
+    const minutesBefore = Math.max(0, Math.round((dueMs - remindMs) / 60000));
+    const duePretty = new Date(`${datePart}T${timePart}`).toLocaleTimeString(
+      [],
+      { hour: "numeric", minute: "2-digit", hour12: true }
+    );
+
+    const eventId = `task_${sanitizeId(task.id) || Date.now()}`;
+
+    return addEventToGoogleCalendar({
+      eventId,
+      title: `${task.title} · Due: ${duePretty}`,
+      description: task.description || `Due: ${duePretty}`,
+      date: datePart,
+      time: timePart,
+      minutesBefore,
+    }).catch((err) => {
+      console.warn("gCal insert failed:", err);
+      return null;
+    });
+  };
+
+  /* ---------------------- checkbox toggle ------------------------- */
+
+  const toggleDone = async (taskId, done) => {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+
+    await onToggle(taskId, done);
+
+    if (!calendarConnected) return;
+
+    if (done && t.gcalId) {
+      await deleteCalendarEvent(t.gcalId).catch(console.warn);
+    }
+
+    if (!done && !t.gcalId) {
+      const dueMs = new Date(t.due).getTime();
+      const remindMs = t.remindAt || dueMs;
+      const newId = await createCalendarEntry(t, dueMs, remindMs);
+      if (newId) await onEdit(taskId, { gcalId: newId });
+    }
+  };
+
+  /* ---------------------- delete task helper ---------------------- */
+
+  const deleteTask = async (taskId) => {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+
+    if (calendarConnected && t.gcalId) {
+      try {
+        await deleteCalendarEvent(t.gcalId);
+      } catch (err) {
+        console.warn("gCal delete failed:", err);
+      }
+    }
+
+    await onDelete(taskId);
+  };
+
+  /* ------------------ build ISO string from form ------------------ */
+
+  const buildDueString = (d, t) => {
+    if (typeof d !== "string" || !d.trim()) return "";
+
+    const dateStr = d.trim();
+    const rawTime = typeof t === "string" && t.trim() ? t.trim() : "00:00";
+    const timeStr = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+
+    return `${dateStr}T${timeStr}`;
+  };
+
+  /* --------------------------- submit ----------------------------- */
+  /* ───── Form submit ────────────────────────────────────────────── */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData?.date) {
+      showError("Date is required");
+      return;
+    }
+
+    /* 1 — build ISO */
+    const dueISO = buildDueString(formData.date, formData.time);
+    if (!dueISO) {
+      showError("Date is required.");
+      return;
+    }
+
+    const dueMs = new Date(dueISO).getTime();
+
+    /* 2 — reminder validation */
+    let remindAtMs = null;
+    if (reminderOn) {
+      if (!reminderDate || !reminderTime) {
+        showError("Pick reminder date & time.");
+        return;
+      }
+      remindAtMs = new Date(`${reminderDate}T${reminderTime}`).getTime();
+      if (remindAtMs >= dueMs) {
+        showError("Reminder must be before the task's due date.");
+        return;
+      }
+    }
+
+    /* 3 — Firestore payload */
+    const taskPayload = {
+      ...formData,
+      titleLower: formData.title.trim().toLowerCase(),
+      due: dueISO,
+      remindAt: remindAtMs,
+      createdMs: Date.now(),
+      reminderSent: false,
+    };
+
+    /* 4 — add / edit in Firestore */
+    let docId;
+    if (editMode) {
+      docId = currentId;
+      await onEdit(docId, taskPayload);
+    } else {
+      const ref = await onAdd({ ...taskPayload });
+
+      docId = typeof ref === "string" ? ref : ref?.id ?? ref?.doc?.id ?? null;
+    }
+
+    /* 5 — close / reset UI (always!) */
+    resetForm();
+    resetReminder();
+    setShowForm(false);
+    setEditMode(false);
+    setCurrentId(null);
+
+    /* 6 — local notification */
+    if (
+      reminderOn &&
+      user?.uid &&
+      dueMs > Date.now() &&
+      Notification.permission === "granted"
+    ) {
+      scheduleTaskReminder({
+        uid: user.uid,
+        title: formData.title,
+        fireAt: remindAtMs,
+      });
+    }
+
+    /* 7 — Google Calendar (only if we have an ID for future deletes) */
+    if (calendarConnected && docId) {
+      const gcalId = await createCalendarEntry(
+        { ...taskPayload, id: docId },
+        dueMs,
+        remindAtMs ?? dueMs
+      );
+      if (gcalId) {
+        await onEdit(docId, { gcalId });
+      }
+    }
+  };
+
+  /* ------------------------ start edit ---------------------------- */
+  const startEdit = (task) => {
+    const [datePart, timeRaw = ""] = task.due.includes("T")
+      ? task.due.split("T")
+      : task.due.split(" ");
+    const timePart = timeRaw.slice(0, 5);
+
+    setFormData({
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      date: datePart,
+      time: timePart,
+    });
+
+    if (task.remindAt) {
+      const d = new Date(task.remindAt);
+      setReminderOn(true);
+      setReminderDate(fmtDate(d));
+      setReminderTime(fmtTime(d));
+    } else {
+      resetReminder();
+    }
+
+    setCurrentId(task.id);
+    setEditMode(true);
+    setShowForm(true);
+  };
+
+  /* -------------------------- render ------------------------------ */
+
+  const filtered = searchResults
+    ? searchResults
+    : tasks.filter((t) =>
+        filter === "done" ? t.done : filter === "notDone" ? !t.done : true
+      );
+
   return (
     <div className="mt-10">
-      {/* Heading */}
+      {/* heading */}
       <h1 className="text-4xl font-semibold text-gray-500 dark:text-gray-300 mb-4 text-center">
         All your tasks
       </h1>
 
-      {/* Filter buttons */}
+      {/* filter buttons */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
         <h3 className="text-3xl font-semibold text-gray-700 dark:text-gray-200">
           Tasks
@@ -202,21 +425,21 @@ export default function TaskList({
             <button
               key={key}
               onClick={() => setFilter(key)}
-              className={`px-3 py-1 text-sm font-medium rounded-full border transition
-                ${filter === key ? "border-2" : ""}
-                ${
-                  key === "done"
-                    ? filter === key
-                      ? "border-green-600 bg-green-600 text-white"
-                      : "border-green-500 bg-green-500 text-white"
-                    : key === "notDone"
-                    ? filter === key
-                      ? "border-red-600 bg-red-600 text-white"
-                      : "border-red-500 bg-red-500 text-white"
-                    : filter === key
-                    ? "border-gray-700 bg-gray-300 dark:bg-gray-500 text-black dark:text-white"
-                    : "border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-black dark:text-white"
-                }`}
+              className={`px-3 py-1 text-sm font-medium rounded-full border transition ${
+                filter === key ? "border-2" : ""
+              } ${
+                key === "done"
+                  ? filter === key
+                    ? "border-green-600 bg-green-600 text-white"
+                    : "border-green-500 bg-green-500 text-white"
+                  : key === "notDone"
+                  ? filter === key
+                    ? "border-red-600 bg-red-600 text-white"
+                    : "border-red-500 bg-red-500 text-white"
+                  : filter === key
+                  ? "border-gray-700 bg-gray-300 dark:bg-gray-500 text-black dark:text-white"
+                  : "border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-black dark:text-white"
+              }`}
             >
               {key === "all" ? "All" : key === "done" ? "Done" : "Not done"}
             </button>
@@ -224,26 +447,49 @@ export default function TaskList({
         </div>
       </div>
 
-      {/* Mobile-only no-category alert */}
-      {categoryReady && categories.length === 0 && (
-        <div className="mb-6 p-3 rounded bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 text-center">
-          {window.innerWidth <= 768 ? (
-            <>
-              You don’t have any categories yet. Tap the <b>☰</b> menu to open
-              the sidebar and create one, or leave tasks as <b>Uncategorized</b>
-              .
-            </>
-          ) : (
-            <>
-              You don’t have any categories yet. View the sidebar and create
-              one, or leave tasks as <b>Uncategorized</b>.
-            </>
-          )}
+      {/* add button + search bar*/}
+      <div className="flex flex-col xs:flex-row items-center gap-4 mt-5 w-full">
+        <div className="flex-grow w-full">
+          <SearchBar setSearchResults={setSearchResults} filter={filter} />
         </div>
-      )}
 
-      {/* Task list */}
-      <div className="bg-white dark:bg-gray-900 shadow rounded p-4 pb-1 transition-colors">
+        <button
+          onClick={() => {
+            resetReminder();
+            resetForm();
+            setShowForm(true);
+            setEditMode(false);
+          }}
+          className="w-full xs:w-auto flex items-center justify-center gap-2 px-5 py-3 text-xl font-medium text-gray-400 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap"
+        >
+          <FaPlus />
+          Add a task
+        </button>
+      </div>
+
+      {/* empty category or calendar banner */}
+      {categoryReady && categories.length === 0 ? (
+        <p className="mb-6 p-3 rounded bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 text-center">
+          You don’t have any categories yet.{" "}
+          {window.innerWidth <= 768 ? "Tap the ☰ menu" : "Open the sidebar"} to
+          create one, or leave tasks as <b>Uncategorized</b>.
+        </p>
+      ) : !calendarConnected ? (
+        <div className="mb-6 p-3 rounded bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100 text-center">
+          <p className="mb-2">
+            Connect Google Calendar to get automatic reminders on any device.
+          </p>
+          <button
+            onClick={handleConnectCalendar}
+            className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded"
+          >
+            Connect Google Calendar
+          </button>
+        </div>
+      ) : null}
+
+      {/* task list */}
+      <div className="bg-white dark:bg-gray-900 shadow rounded p-4 pb-1">
         {filtered.length ? (
           filtered.map((task) => {
             const categoryInfo = categories.find(
@@ -271,21 +517,19 @@ export default function TaskList({
                 key={task.id}
                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm mb-5"
               >
-                {/* Left side */}
+                {/* left */}
                 <div className="flex items-start sm:items-center gap-4">
-                  {/* Checkbox */}
                   <button
                     className={`flex-shrink-0 w-7 h-7 rounded-full border-2 border-black dark:border-white flex items-center justify-center transition-colors ${
                       task.done ? "bg-black dark:bg-white" : "bg-transparent"
                     }`}
-                    onClick={() => onToggle(task.id, !task.done)}
+                    onClick={() => toggleDone(task.id, !task.done)}
                   >
                     {task.done && (
                       <span className="w-3 h-3 bg-white dark:bg-black rounded-full" />
                     )}
                   </button>
 
-                  {/* Info */}
                   <div>
                     <p
                       className={`font-medium text-gray-800 dark:text-gray-100 text-lg ${
@@ -308,7 +552,6 @@ export default function TaskList({
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                      {/* Category dot */}
                       <span
                         className="w-3 h-3 rounded-full"
                         style={{
@@ -317,10 +560,14 @@ export default function TaskList({
                             : "#6b7280",
                         }}
                       />
-                      {/* Category name (fallback) */}
                       <span className={task.done ? "line-through" : ""}>
-                        {/* # -> uncategorized -> no link  */}
-                        <Link to={categoryInfo ? `/dashboard/categories/${categoryInfo.link}` : '#'}> 
+                        <Link
+                          to={
+                            categoryInfo
+                              ? `/dashboard/categories/${categoryInfo.link}`
+                              : "#"
+                          }
+                        >
                           {categoryInfo ? categoryInfo.name : "Uncategorized"}
                         </Link>
                       </span>
@@ -332,7 +579,6 @@ export default function TaskList({
                       </span>
                     </div>
 
-                    {/* Status Text */}
                     <span
                       className={`mt-2 inline-block px-2 py-1 rounded-full text-xs font-semibold ${statusClass[status]}`}
                     >
@@ -341,7 +587,7 @@ export default function TaskList({
                   </div>
                 </div>
 
-                {/* Action buttons */}
+                {/* buttons */}
                 <div className="flex gap-3 md:flex justify-end">
                   <button
                     onClick={() => startEdit(task)}
@@ -369,20 +615,7 @@ export default function TaskList({
         )}
       </div>
 
-      {/* Add task button */}
-      <button
-        onClick={() => {
-          setShowForm(true);
-          setEditMode(false);
-          resetForm();
-        }}
-        className="w-full text-xl flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-300 rounded-2xl py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mt-5"
-      >
-        <FaPlus />
-        <span className="text-xl font-medium">Add a task</span>
-      </button>
-
-      {/* Confirm Delete dialog */}
+      {/* confirm delete */}
       {showConfirmDeleteForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 p-6 rounded shadow-lg w-full max-w-sm text-center">
@@ -394,8 +627,8 @@ export default function TaskList({
             </p>
             <div className="flex justify-center gap-4">
               <button
-                onClick={() => {
-                  onDelete(pendingDeleteId);
+                onClick={async () => {
+                  await deleteTask(pendingDeleteId);
                   setShowConfirmDeleteForm(false);
                   setPendingDeleteId(null);
                 }}
@@ -417,18 +650,17 @@ export default function TaskList({
         </div>
       )}
 
-      {/* Add / Edit form */}
+      {/* add / edit form */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <form
             onSubmit={handleSubmit}
             className="bg-white dark:bg-gray-900 p-6 rounded-lg w-full max-w-md shadow-lg"
           >
-            <h2 className="text-2xl font-semibold mb-4 text-white">
+            <h2 className="text-2xl font-semibold mb-4 dark:text-white">
               {editMode ? "Edit Task" : "New Task"}
             </h2>
 
-            {/* Title */}
             <input
               type="text"
               placeholder="Title"
@@ -440,7 +672,6 @@ export default function TaskList({
               required
             />
 
-            {/* Description */}
             <textarea
               placeholder="Description"
               value={formData.description}
@@ -450,7 +681,6 @@ export default function TaskList({
               className="w-full mb-3 p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded"
             />
 
-            {/* Category select */}
             <select
               value={formData.category}
               onChange={(e) =>
@@ -475,7 +705,6 @@ export default function TaskList({
               )}
             </select>
 
-            {/* Date */}
             <div className="relative mb-3">
               <input
                 ref={dateInputRef}
@@ -484,7 +713,7 @@ export default function TaskList({
                 onChange={(e) =>
                   setFormData({ ...formData, date: e.target.value })
                 }
-                min={new Date().toISOString().split("T")[0]}
+                min={todayLocal}
                 className="w-full p-2 pl-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded"
                 required
               />
@@ -497,7 +726,6 @@ export default function TaskList({
               </button>
             </div>
 
-            {/* Time */}
             <div className="relative mb-3">
               <input
                 ref={timeInputRef}
@@ -518,7 +746,6 @@ export default function TaskList({
               </button>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-between">
               <button
                 type="submit"
@@ -531,12 +758,36 @@ export default function TaskList({
                 onClick={() => {
                   setShowForm(false);
                   resetForm();
+                  resetReminder();
                 }}
                 className="text-gray-500 dark:text-gray-300 px-4 py-2 hover:underline"
               >
                 Cancel
               </button>
             </div>
+
+            <hr className="my-6 mb-4" />
+
+            <ReminderToggle
+              checked={reminderOn}
+              onChange={(e) => {
+                setReminderOn(e.target.checked);
+                if (e.target.checked && !reminderDate && !reminderTime) {
+                  const { date, time } = suggestReminder(
+                    formData.date,
+                    formData.time
+                  );
+                  setReminderDate(date);
+                  setReminderTime(time);
+                }
+              }}
+              reminderDate={reminderDate}
+              reminderTime={reminderTime}
+              setReminderDate={setReminderDate}
+              setReminderTime={setReminderTime}
+              taskDate={formData.date}
+              taskTime={formData.time}
+            />
           </form>
         </div>
       )}

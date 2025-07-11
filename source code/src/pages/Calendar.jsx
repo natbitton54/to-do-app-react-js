@@ -57,11 +57,12 @@ export default function Calendar() {
         id: t.id,
         title: t.title,
         start: t.due,
+        end: new Date(new Date(t.due).getTime() + 1 * 60 * 1000), // 1 minute duration
         allDay: false,
         backgroundColor: categories[t.category] || "#6366f1",
         borderColor: categories[t.category] || "#6366f1",
-        extendedProps: { status }, 
-      };
+        extendedProps: { status },
+      };      
     });
   }, [tasks, categories]);
 
@@ -128,7 +129,7 @@ export default function Calendar() {
           }}
           height="auto"
           events={events}
-          eventDisplay={mobile ? "list-item" : "auto"}
+          eventDisplay={mobile ? "list-item" : "block"}
           eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
           /* tooltip (status + title) */
           eventDidMount={({ el, event }) => {

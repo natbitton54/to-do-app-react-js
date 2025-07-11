@@ -14,6 +14,12 @@ import {
 import { auth, db } from './config.js'
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { showError } from '../utils/alerts.js';
+import {
+    connectGoogleCalendar as _connect,
+    calendarScopeGranted
+} from "../utils/googleCalendarAPI";
+
+const LS_KEY = "calendarConnected";
 
 function capitalizeName(name) {
     return name
@@ -30,10 +36,18 @@ const applyPersistence = async (remember) => {
     )
 }
 
+export const connectGoogleCalendar = ({ interactive = true } = {}) =>
+    _connect({ interactive });
+
+/** UI helper – quick yes/no */
+export const hasCalendarAccess = () =>
+    calendarScopeGranted() || localStorage.getItem(LS_KEY) === "true";
+
 //? Email/password
 export const register = async (email, password, firstName, lastName) => {
     await applyPersistence(false)
     const normalizedEmail = email.trim().toLowerCase();
+
     const userCredentials = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
     const user = userCredentials.user
     const capFirstName = capitalizeName(firstName);
@@ -64,40 +78,44 @@ export const login = async (email, password, remember = false) => {
 //? Gmail auth
 export const loginWithGoogle = async (remember = false) => {
     await applyPersistence(remember);
-    const provider = new GoogleAuthProvider()
-    const result = await signInWithPopup(auth, provider)
-    const user = result.user
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/calendar.events");
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
     const nameParts = user.displayName?.trim().split(/\s+/) || [];
+    const firstName = capitalizeName(nameParts[0] || "");
+    const lastName = capitalizeName(nameParts.slice(1).join(" ") || "");
 
-    const firstName = capitalizeName(nameParts[0] || '')
-    const lastName = capitalizeName(nameParts.slice(1).join(" ") || '')
-
-    const userRef = doc(db, 'users', user.uid)
-    const snapshot = await getDoc(userRef)
+    const userRef = doc(db, "users", user.uid);
+    const snapshot = await getDoc(userRef);
 
     if (!snapshot.exists()) {
-        await setDoc(
-            userRef,
-            {
-                uid: user.uid,
-                firstName,
-                lastName,
-                email: user.email || "",
-                createdAt: serverTimestamp(),
-            },
-        );
+        await setDoc(userRef, {
+            uid: user.uid,
+            firstName,
+            lastName,
+            email: user.email || "",
+            createdAt: serverTimestamp(),
+        });
     } else {
-        // already registered → leave createdAt untouched
         await updateDoc(userRef, {
             firstName,
             lastName,
-            email: user.email || ''
-        })
+            email: user.email || "",
+        });
+    }
+
+    // Attempt calendar access silently (non-interactive)
+    try {
+        await connectGoogleCalendar({ interactive: false });
+    } catch (err) {
+        console.warn("Calendar not connected silently, user can connect manually later.");
     }
 
     return result;
-}
+};
+
 
 export const handleForgetPassword = async (email) => {
     try {
