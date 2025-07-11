@@ -1,4 +1,3 @@
-
 # 📝 Task Manager – React + Firebase + Vercel
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -23,6 +22,8 @@ A full-stack **to-do / task planner** that runs everywhere:
 | 🗂 **Categories**  | Unlimited user-defined categories with color tags |
 | ⏰ **Due Date & Time** | Native pickers & readable formatting (e.g. Jul 4, 2025, 6:30 PM) |
 | ⏳ **Smart Reminders** | <ul><li>📱 Local notifications via Capacitor</li><li>💻 Push via Firebase Cloud Messaging + cron job</li></ul> |
+| 🔍 **Search**      | Instant search across titles and descriptions (case-insensitive) |
+| 📊 **Stats Page**  | Visual summary of completed, pending, and overdue tasks per category |
 | 🔔 **Cron Job**    | `/api/sendReminders` runs every 15 min (Pro tier), marking tasks as `reminderSent=true` |
 | ✔️ **Task Actions** | Add • Edit • Toggle Done • Delete (with confirmation) |
 | 🔍 **Filters**     | All • Done • Not Done |
@@ -41,6 +42,8 @@ A full-stack **to-do / task planner** that runs everywhere:
 - **Capacitor shell** for iOS/Android builds
 - **Notification logic** (push & local)
 - **Dark/light theme** based on user system
+- **Task search input + filtering**
+- **Stats dashboard** with dynamic bar/pie chart using Recharts
 
 ### ☁️ Backend – Firebase + Vercel Serverless
 
@@ -160,6 +163,27 @@ npx cap open ios
 
 ---
 
+## 📊 Stats Page
+
+Navigate to `/stats` to view visual breakdowns of your task data:
+
+* 📈 **Bar chart**: Tasks done / pending / overdue per category
+* 🟣 **Pie chart**: Proportion of tasks done vs remaining
+* ⏱ **Real-time** updates via Firestore listeners
+* 🔍 Filters by category and time period (week/month)
+
+Powered by **Recharts** for fast, clean visual rendering.
+
+---
+
+## 🔎 Search
+
+* Located at the top of the task list or header bar
+* Case-insensitive match on task title 
+* Dynamically filters results in real-time as you type
+
+---
+
 ## 🛠 Scripts
 
 | Command          | Description                             |
@@ -179,8 +203,4 @@ npx cap open ios
 Commercial use requires permission.
 
 📧 [nathanielbitton18@gmail.com](mailto:nathanielbitton18@gmail.com)
-
----
-
-
 
